@@ -1,5 +1,6 @@
 # ColecifeBens
 > 🚧 Em desenvolvimento!
+
 API desenvolvida com o framework Laravel.
 
 ## Como rodar
@@ -24,9 +25,12 @@ alias dcup="docker-compose up"
 alias dcdown="docker-compose down"
 alias pas="php artisan serve"
 ```
+
 ---
+
 # ColecifeBens
 > 🚧 Under development!
+
 API developed using the Laravel framework.
 
 ## Running the project
