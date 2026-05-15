@@ -2,31 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Review;
+use App\Models\Order;
 use Illuminate\Http\Request;
 
 class ReviewController extends Controller
 {
-    private string $file = 'storage/app/data/reviews.json';
-
-    private function read(): array
-    {
-        return json_decode(file_get_contents(base_path($this->file)), true) ?? [];
-    }
-
-    private function write(array $data): void
-    {
-        file_put_contents(base_path($this->file), json_encode($data, JSON_PRETTY_PRINT));
-    }
-
     public function index()
     {
-        return response()->json($this->read());
+        return response()->json(Review::all());
     }
 
     public function show(int $id)
     {
-        $reviews = $this->read();
-        $review = array_values(array_filter($reviews, fn($r) => $r['id'] === $id))[0] ?? null;
+        $review = Review::find($id);
 
         if (!$review) return response()->json(['message' => 'Review not found'], 404);
 
@@ -35,33 +24,53 @@ class ReviewController extends Controller
 
     public function store(Request $request)
     {
-        $reviews = $this->read();
+        $request->validate([
+            'user_id'    => 'required|integer|exists:users,id',
+            'product_id' => 'required|integer|exists:products,id',
+            'rating'     => 'required|integer|between:1,5',
+            'comment'    => 'nullable|string',
+        ]);
 
-        $review = [
-            'id'           => count($reviews) ? max(array_column($reviews, 'id')) + 1 : 1,
-            'user_id'      => $request->user_id,
-            'product_id'   => $request->product_id,
-            'rating'       => $request->rating,
-            'comment'      => $request->comment,
-            'reviewed_at'  => now()->toDateTimeString(),
-        ];
+        $errors = [];
 
-        $reviews[] = $review;
-        $this->write($reviews);
+        $purchased = Order::where('user_id', $request->user_id)
+            ->where('status', 'entregue')
+            ->where('payment_status', 'aprovado')
+            ->whereHas('products', function ($query) use ($request) {
+                $query->where('products.id', $request->product_id);
+            })
+            ->exists();
+
+        if (!$purchased) {
+            $errors['product_id'] = ['You can only review products you have purchased and received'];
+        }
+
+        $exists = Review::where('user_id', $request->user_id)
+            ->where('product_id', $request->product_id)
+            ->exists();
+
+        if ($exists) {
+            $errors['review'] = ['User already reviewed this product'];
+        }
+
+        if (!empty($errors)) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $errors], 422);
+        }
+
+        $review = Review::create($request->only([
+            'user_id', 'product_id', 'rating', 'comment',
+        ]));
 
         return response()->json($review, 201);
     }
 
     public function destroy(int $id)
     {
-        $reviews = $this->read();
-        $filtered = array_values(array_filter($reviews, fn($r) => $r['id'] !== $id));
+        $review = Review::find($id);
 
-        if (count($filtered) === count($reviews)) {
-            return response()->json(['message' => 'Review not found'], 404);
-        }
+        if (!$review) return response()->json(['message' => 'Review not found'], 404);
 
-        $this->write($filtered);
+        $review->delete();
 
         return response()->json(['message' => 'Review deleted']);
     }

@@ -2,31 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Order;
+use App\Models\Product;
 use Illuminate\Http\Request;
 
 class OrderController extends Controller
 {
-    private string $file = 'storage/app/data/orders.json';
-
-    private function read(): array
-    {
-        return json_decode(file_get_contents(base_path($this->file)), true) ?? [];
-    }
-
-    private function write(array $data): void
-    {
-        file_put_contents(base_path($this->file), json_encode($data, JSON_PRETTY_PRINT));
-    }
-
     public function index()
     {
-        return response()->json($this->read());
+        return response()->json(Order::with('products')->get());
     }
 
     public function show(int $id)
     {
-        $orders = $this->read();
-        $order = array_values(array_filter($orders, fn($o) => $o['id'] === $id))[0] ?? null;
+        $order = Order::with('products')->find($id);
 
         if (!$order) return response()->json(['message' => 'Order not found'], 404);
 
@@ -35,51 +24,131 @@ class OrderController extends Controller
 
     public function store(Request $request)
     {
-        $orders = $this->read();
+        $request->validate([
+            'user_id'             => 'required|integer|exists:users,id',
+            'payment_method'      => 'required|string|in:pix,cartao_credito,boleto',
+            'products'            => 'required|array|min:1',
+            'products.*.id'       => 'required|integer|exists:products,id',
+            'products.*.quantity' => 'required|integer|min:1',
+        ]);
 
-        $order = [
-            'id'             => count($orders) ? max(array_column($orders, 'id')) + 1 : 1,
+        $total = 0;
+        $items = [];
+
+        foreach ($request->products as $item) {
+            $product = Product::find($item['id']);
+
+            if ($item['quantity'] > $product->stock) {
+                return response()->json([
+                    'message' => "Insufficient stock for product: {$product->name}",
+                    'available' => $product->stock
+                ], 422);
+            }
+
+            $total += $product->price * $item['quantity'];
+            $items[$product->id] = [
+                'quantity'   => $item['quantity'],
+                'unit_price' => $product->price,
+            ];
+        }
+
+        $order = Order::create([
             'user_id'        => $request->user_id,
-            'product_ids'    => $request->product_ids,
-            'total'          => $request->total,
-            'status'         => 'pending',
-            'payment_status' => 'awaiting',
+            'total'          => $total,
             'payment_method' => $request->payment_method,
-            'ordered_at'     => now()->toDateTimeString(),
-        ];
+        ]);
 
-        $orders[] = $order;
-        $this->write($orders);
+        $order->products()->attach($items);
 
-        return response()->json($order, 201);
+        foreach ($request->products as $item) {
+            Product::find($item['id'])->decrement('stock', $item['quantity']);
+        }
+
+        return response()->json($order->load('products'), 201);
     }
 
-    public function update(Request $request, int $id)
+    public function updateStatus(Request $request, int $id)
     {
-        $orders = $this->read();
-        $index = array_search($id, array_column($orders, 'id'));
+        $order = Order::find($id);
 
-        if ($index === false) return response()->json(['message' => 'Order not found'], 404);
+        if (!$order) return response()->json(['message' => 'Order not found'], 404);
 
-        $orders[$index] = array_merge($orders[$index], $request->only([
-            'status', 'payment_status', 'payment_method'
-        ]));
+        // 1. validação de campos
+        $fields = $request->only(['status', 'payment_status', 'payment_method']);
+        if (empty($fields)) {
+            return response()->json(['message' => 'No fields provided'], 422);
+        }
 
-        $this->write($orders);
+        $request->validate([
+            'status'         => 'sometimes|string|in:pendente,enviado,entregue,cancelado',
+            'payment_status' => 'sometimes|string|in:aguardando,aprovado,recusado',
+            'payment_method' => 'sometimes|string|in:pix,cartao_credito,boleto',
+        ]);
 
-        return response()->json($orders[$index]);
+        // 2. regras de negócio
+        $statusFlow = ['pendente' => 0, 'enviado' => 1, 'entregue' => 2, 'cancelado' => 3];
+        $newStatus = $request->status ?? $order->status;
+        $newPaymentStatus = $request->payment_status ?? $order->payment_status;
+
+        if ($order->status === 'cancelado') {
+            return response()->json(['message' => 'Cannot update a cancelled order'], 422);
+        }
+
+        if ($order->status === 'entregue' && $request->status === 'cancelado') {
+            return response()->json(['message' => 'Cannot cancel a delivered order'], 422);
+        }
+
+        if ($request->status && isset($statusFlow[$request->status])) {
+            if ($statusFlow[$request->status] < $statusFlow[$order->status]) {
+                return response()->json(['message' => 'Cannot revert order status'], 422);
+            }
+            if ($statusFlow[$request->status] > $statusFlow[$order->status] + 1 && $request->status !== 'cancelado') {
+                return response()->json(['message' => 'Cannot skip order status steps'], 422);
+            }
+        }
+
+        if ($request->payment_status === 'recusado' && $order->payment_status === 'aprovado') {
+            return response()->json(['message' => 'Cannot revert payment status from approved'], 422);
+        }
+
+        if ($request->payment_status === 'recusado' && in_array($order->status, ['enviado', 'entregue'])) {
+            return response()->json(['message' => 'Cannot refuse payment for a shipped or delivered order'], 422);
+        }
+
+        if ($newStatus === 'enviado' && $newPaymentStatus !== 'aprovado') {
+            return response()->json(['message' => 'Cannot ship order without payment confirmation'], 422);
+        }
+
+        if ($newStatus === 'entregue' && $newPaymentStatus !== 'aprovado') {
+            return response()->json(['message' => 'Cannot mark order as delivered without approved payment'], 422);
+        }
+
+        if ($newStatus === 'cancelado' && $newPaymentStatus === 'aprovado') {
+            return response()->json(['message' => 'Cannot cancel an order with approved payment'], 422);
+        }
+
+        if ($request->payment_method && 
+            $request->payment_method !== $order->payment_method &&
+            ($order->status !== 'pendente' || $order->payment_status !== 'aguardando')) {
+            return response()->json(['message' => 'Cannot change payment method after order is confirmed or refused'], 422);
+        }
+
+        $order->update($request->only(['status', 'payment_status', 'payment_method']));
+
+        if ($request->payment_status === 'aprovado' && !$order->paid_at) {
+            $order->update(['paid_at' => now()]);
+        }
+
+        return response()->json($order);
     }
 
     public function destroy(int $id)
     {
-        $orders = $this->read();
-        $filtered = array_values(array_filter($orders, fn($o) => $o['id'] !== $id));
+        $order = Order::find($id);
 
-        if (count($filtered) === count($orders)) {
-            return response()->json(['message' => 'Order not found'], 404);
-        }
+        if (!$order) return response()->json(['message' => 'Order not found'], 404);
 
-        $this->write($filtered);
+        $order->delete();
 
         return response()->json(['message' => 'Order deleted']);
     }

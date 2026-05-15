@@ -13,11 +13,6 @@ use App\Http\Controllers\ReviewController;
 |--------------------------------------------------------------------------
 | API Routes
 |--------------------------------------------------------------------------
-|
-| Here is where you can register API routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "api" middleware group. Make something great!
-|
 */
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
@@ -25,10 +20,10 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 
 Route::prefix('v1')->group(function () {
-    Route::apiResource('produtos', ProdutoController::class);
     Route::apiResource('users', UserController::class);
     Route::apiResource('categories', CategoryController::class);
     Route::apiResource('products', ProductController::class);
-    Route::apiResource('orders', OrderController::class);
+    Route::apiResource('orders', OrderController::class)->except(['update']);
+    Route::patch('/orders/{id}', [OrderController::class, 'updateStatus'])->name('orders.updateStatus');
     Route::apiResource('reviews', ReviewController::class)->only(['index', 'show', 'store', 'destroy']);
 });

@@ -2,31 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class UserController extends Controller
 {
-    private string $file = 'storage/app/data/users.json';
-
-    private function read(): array
-    {
-        return json_decode(file_get_contents(base_path($this->file)), true) ?? [];
-    }
-
-    private function write(array $data): void
-    {
-        file_put_contents(base_path($this->file), json_encode($data, JSON_PRETTY_PRINT));
-    }
-
     public function index()
     {
-        return response()->json($this->read());
+        return response()->json(User::all());
     }
 
     public function show(int $id)
     {
-        $users = $this->read();
-        $user = array_values(array_filter($users, fn($u) => $u['id'] === $id))[0] ?? null;
+        $user = User::find($id);
 
         if (!$user) return response()->json(['message' => 'User not found'], 404);
 
@@ -35,52 +23,64 @@ class UserController extends Controller
 
     public function store(Request $request)
     {
-        $users = $this->read();
+        $request->validate([
+            'name'       => 'required|string|max:100',
+            'email'      => 'required|email|max:150|unique:users,email',
+            'password'   => 'required|string|min:6',
+            'cpf'        => 'required|string|size:14|unique:users,cpf',
+            'birth_date' => 'required|date',
+            'phone'      => 'required|string|max:20',
+        ]);
 
-        $user = [
-            'id'             => count($users) ? max(array_column($users, 'id')) + 1 : 1,
-            'name'           => $request->name,
-            'email'          => $request->email,
-            'password'       => bcrypt($request->password),
-            'cpf'            => $request->cpf,
-            'birth_date'     => $request->birth_date,
-            'phone'          => $request->phone,
-            'reputation'     => 0,
-            'registered_at'  => now()->toDateTimeString(),
-        ];
-
-        $users[] = $user;
-        $this->write($users);
+        $user = User::create([
+            'name'       => $request->name,
+            'email'      => $request->email,
+            'password'   => bcrypt($request->password),
+            'cpf'        => $request->cpf,
+            'birth_date' => $request->birth_date,
+            'phone'      => $request->phone,
+        ]);
 
         return response()->json($user, 201);
     }
 
     public function update(Request $request, int $id)
     {
-        $users = $this->read();
-        $index = array_search($id, array_column($users, 'id'));
+        $user = User::find($id);
 
-        if ($index === false) return response()->json(['message' => 'User not found'], 404);
+        if (!$user) return response()->json(['message' => 'User not found'], 404);
 
-        $users[$index] = array_merge($users[$index], $request->only([
-            'name', 'email', 'phone', 'birth_date'
-        ]));
+        if ($request->isMethod('put')) {
+            $request->validate([
+                'name'       => 'required|string|max:100',
+                'email'      => 'required|email|max:150|unique:users,email,' . $id,
+                'phone'      => 'required|string|max:20',
+                'birth_date' => 'required|date',
+            ]);
+        } else {
+            $fields = $request->only(['name', 'email', 'phone', 'birth_date']);
+            
+            if (empty($fields)) {
+                return response()->json(['message' => 'No fields provided'], 422);
+            }
 
-        $this->write($users);
+            $request->validate([
+                'email' => 'sometimes|email|unique:users,email,' . $id,
+            ]);
+        }
 
-        return response()->json($users[$index]);
+        $user->update($request->only(['name', 'email', 'phone', 'birth_date']));
+
+        return response()->json($user);
     }
 
     public function destroy(int $id)
     {
-        $users = $this->read();
-        $filtered = array_values(array_filter($users, fn($u) => $u['id'] !== $id));
+        $user = User::find($id);
 
-        if (count($filtered) === count($users)) {
-            return response()->json(['message' => 'User not found'], 404);
-        }
+        if (!$user) return response()->json(['message' => 'User not found'], 404);
 
-        $this->write($filtered);
+        $user->delete();
 
         return response()->json(['message' => 'User deleted']);
     }
