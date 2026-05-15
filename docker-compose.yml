@@ -6,19 +6,43 @@ services:
       - .:/app
     ports:
       - "8000:8000"
-    # - db
+    depends_on:
+      - db
+    environment:
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: colecifebens
+      DB_USERNAME: colecifebens
+      DB_PASSWORD: admin
+
+  db:
+    image: mysql:8
+    container_name: colecifebens-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: admin
+      MYSQL_DATABASE: colecifebens
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+volumes:
+  db_data:
 
 #   db:
-#     image: mysql:8
+#     image: postgres:18
 #     container_name: colecifebens-db
 #     restart: always
 #     environment:
-#       MYSQL_ROOT_PASSWORD: root
-#       MYSQL_DATABASE: colecifebens
+#       POSTGRES_DB: colecifebens
+#       POSTGRES_USER: colecifebens
+#       POSTGRES_PASSWORD: admin
 #     ports:
-#       - "3306:3306"
+#       - "5432:5432"
 #     volumes:
-#       - db_data:/var/lib/mysql
+#       - db_data:/var/lib/postgresql
 
 # volumes:
 #   db_data:
