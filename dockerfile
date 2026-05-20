@@ -4,8 +4,7 @@ RUN apt-get update && apt-get install -y \
     unzip \
     git \
     curl \
-    netcat-openbsd
-
+    default-mysql-client
 RUN docker-php-ext-install pdo pdo_mysql
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer

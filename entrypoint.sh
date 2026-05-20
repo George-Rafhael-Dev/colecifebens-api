@@ -1,34 +1,41 @@
 #!/bin/sh
 
-# para se der erro
+# error handling
 set -e
 
-echo "Iniciando container..."
+echo "Starting container..."
 
 if [ ! -f .env ]; then
-  echo "Criando .env..."
+  echo "Creating .env..."
   cp .env.example .env
 fi
 
 if [ ! -d vendor ]; then
-  echo "Instalando dependências (composer install)..."
+  echo "Installing dependencies (composer install)..."
   composer install
 fi
 
 if ! grep -q "^APP_KEY=base64:" .env; then
-  echo "Gerando APP_KEY..."
+  echo "Generating APP_KEY..."
   php artisan key:generate
 fi
 
-echo "Aguardando banco de dados..."
-until nc -z db 3306; do
-    echo "Banco ainda não disponível, aguardando..."
+echo "Waiting for database..."
+until php -r "new PDO('mysql:host=db;port=3306;dbname=${DB_DATABASE}', '${DB_USERNAME}', '${DB_PASSWORD}');" 2>/dev/null 1>/dev/null; do
     sleep 2
 done
-echo "Banco disponível."
+echo "   Database available."
 
-echo "Rodando migrations..."
-php artisan migrate
+if ! php -r "
+\$pdo = new PDO('mysql:host=db;port=3306;dbname=${DB_DATABASE}', '${DB_USERNAME}', '${DB_PASSWORD}');
+\$r = \$pdo->query('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=\"${DB_DATABASE}\" AND table_name=\"users\"');
+exit(\$r->fetchColumn() > 0 ? 0 : 1);
+" ; then
+    echo "   Running migrations..."
+    php artisan migrate --force
+    echo "   Running seeders..."
+    php artisan db:seed --force
+fi
 
-echo "Subindo Laravel..."
+echo "   Starting colecifebens..."
 exec php artisan serve --host=0.0.0.0 --port=8000
