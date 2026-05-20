@@ -64,9 +64,15 @@ class UserController extends Controller
             'name'       => 'required|string|max:100',
             'email'      => 'required|email|max:150|unique:users,email',
             'password'   => 'required|string|min:6',
-            'cpf'        => 'required|string|size:14|unique:users,cpf',
+            'cpf' => [
+                'required',
+                'string',
+                'size:14',
+                'unique:users,cpf',
+                'regex:/^\d{3}\.\d{3}\.\d{3}-\d{2}$/'
+            ],
             'birth_date' => 'required|date',
-            'phone'      => 'required|string|max:20',
+            'phone' => ['required','string','regex:/^\d{10,11}$/'],        
         ]);
 
         $user = User::create([
@@ -106,7 +112,7 @@ class UserController extends Controller
             $request->validate([
                 'name'       => 'required|string|max:100',
                 'email'      => 'required|email|max:150|unique:users,email,' . $id,
-                'phone'      => 'required|string|max:20',
+                'phone'      => ['required', 'string', 'regex:/^\d{10,11}$/'],
                 'birth_date' => 'required|date',
             ]);
         } else {
@@ -117,7 +123,10 @@ class UserController extends Controller
             }
 
             $request->validate([
-                'email' => 'sometimes|email|unique:users,email,' . $id,
+                'name'       => 'sometimes|string|max:100',
+                'email'      => 'sometimes|email|max:150|unique:users,email,' . $id,
+                'phone'      => ['sometimes', 'string', 'regex:/^\d{10,11}$/'],
+                'birth_date' => 'sometimes|date',
             ]);
         }
 

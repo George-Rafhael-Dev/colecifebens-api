@@ -78,14 +78,18 @@ class OrderController extends Controller
 
         foreach ($request->products as $item) {
             $product = Product::find($item['id']);
-
+            
+            if ($product->user_id === $request->user_id) {
+                return response()->json([
+                    'message' => "You cannot purchase your own product: {$product->name}"
+                ], 422);
+            }
             if ($item['quantity'] > $product->stock) {
                 return response()->json([
                     'message' => "Insufficient stock for product: {$product->name}",
                     'available' => $product->stock
                 ], 422);
             }
-
             $total += $product->price * $item['quantity'];
             $items[$product->id] = [
                 'quantity'   => $item['quantity'],
