@@ -7,59 +7,21 @@ use Illuminate\Http\Request;
 
 class ProductController extends Controller
 {
-    /**
-     * @OA\Get(
-     *     path="/products",
-     *     summary="List all products",
-     *     tags={"Products"},
-     *     @OA\Response(response=200, description="Success")
-     * )
-     */
+    
     public function index()
     {
         return response()->json(Product::all());
     }
-    /**
-     * @OA\Get(
-     *     path="/products/{id}",
-     *     summary="Show product",
-     *     tags={"Products"},
-     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
-     *     @OA\Response(response=200, description="Success"),
-     *     @OA\Response(response=404, description="Not found")
-     * )
-     */
+    
     public function show(int $id)
     {
         $product = Product::find($id);
 
-        if (!$product) return response()->json(['message' => 'Product not found'], 404);
+        if (!$product) return response()->json(['memssagem' => 'Produto não encontrado'], 404);
 
         return response()->json($product);
     }
-    /**
-     * @OA\Post(
-     *     path="/products",
-     *     summary="Create product",
-     *     tags={"Products"},
-     *     @OA\RequestBody(
-     *         required=true,
-     *         @OA\JsonContent(
-     *             required={"name","price","condition","stock","user_id","category_id"},
-     *             @OA\Property(property="name", type="string", example="Goku Super Sayajin"),
-     *             @OA\Property(property="description", type="string", example="Action figure raro"),
-     *             @OA\Property(property="price", type="number", example=350.00),
-     *             @OA\Property(property="rarity", type="string", example="raro"),
-     *             @OA\Property(property="condition", type="string", enum={"novo","usado","restaurado"}, example="novo"),
-     *             @OA\Property(property="stock", type="integer", example=3),
-     *             @OA\Property(property="user_id", type="integer", example=1),
-     *             @OA\Property(property="category_id", type="integer", example=1)
-     *         )
-     *     ),
-     *     @OA\Response(response=201, description="Created"),
-     *     @OA\Response(response=422, description="Validation error")
-     * )
-     */
+    
     public function store(Request $request)
     {
         $request->validate([
