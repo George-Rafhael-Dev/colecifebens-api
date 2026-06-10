@@ -17,7 +17,7 @@ class UserController extends Controller
     {
         $user = User::find($id);
 
-        if (!$user) return response()->json(['message' => 'User not found'], 404);
+        if (!$user) return response()->json(['mensagem' => 'Usuario não encontrado'], 404);
 
         return response()->json($user);
     }
@@ -55,7 +55,7 @@ class UserController extends Controller
     {
         $user = User::find($id);
 
-        if (!$user) return response()->json(['message' => 'Usuario não encontrado'], 404);
+        if (!$user) return response()->json(['mensagem' => 'Usuario não encontrado'], 404);
 
         if ($request->isMethod('put')) {
             $request->validate([
@@ -68,7 +68,7 @@ class UserController extends Controller
             $fields = $request->only(['name', 'email', 'phone', 'birth_date']);
             
             if (empty($fields)) {
-                return response()->json(['message' => 'No fields provided'], 422);
+                return response()->json(['mensagem' => 'No fields provided'], 422);
             }
 
             $request->validate([
@@ -88,10 +88,10 @@ class UserController extends Controller
     {
         $user = User::find($id);
 
-        if (!$user) return response()->json(['menssagem' => 'Usuario não encontrado'], 404);
+        if (!$user) return response()->json(['mensagem' => 'Usuario não encontrado'], 404);
 
         $user->delete();
 
-        return response()->json(['menssagem' => 'Usuario deletado']);
+        return response()->json(['mensagem' => 'Usuario deletado']);
     }
 }
