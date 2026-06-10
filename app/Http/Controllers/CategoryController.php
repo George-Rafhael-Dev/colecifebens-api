@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Category;
-use Illuminate\Http\Request;
+use App\Services\CategoryService;
+use App\Http\Requests\StoreCategoryRequest;
+use App\Http\Requests\UpdateCategoryRequest;
 
 class CategoryController extends Controller
 {
+    public function __construct(private CategoryService $service) {}
     /**
      * @OA\Get(
      *     path="/categories",
@@ -17,7 +19,7 @@ class CategoryController extends Controller
      */
     public function index()
     {
-        return response()->json(Category::all());
+        return response()->json($this->service->getAll());
     }
     /**
      * @OA\Get(
@@ -31,11 +33,11 @@ class CategoryController extends Controller
      */
     public function show(int $id)
     {
-        $category = Category::find($id);
-
-        if (!$category) return response()->json(['message' => 'Category not found'], 404);
-
-        return response()->json($category);
+        try {
+            return response()->json($this->service->getById($id));
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], $e->getCode());
+        }
     }
     /**
      * @OA\Post(
@@ -54,16 +56,9 @@ class CategoryController extends Controller
      *     @OA\Response(response=422, description="Validation error")
      * )
      */
-    public function store(Request $request)
+    public function store(StoreCategoryRequest $request)
     {
-        $request->validate([
-            'name'        => 'required|string|max:100',
-            'description' => 'nullable|string',
-        ]);
-
-        $category = Category::create($request->only(['name', 'description']));
-
-        return response()->json($category, 201);
+        return response()->json($this->service->create($request->validated()), 201);
     }
     /**
      * @OA\Put(
@@ -99,26 +94,17 @@ class CategoryController extends Controller
      *     @OA\Response(response=404, description="Not found")
      * )
      */
-    public function update(Request $request, int $id)
+    public function update(UpdateCategoryRequest $request, int $id)
     {
-        $category = Category::find($id);
-
-        if (!$category) return response()->json(['message' => 'Category not found'], 404);
-
-        if ($request->isMethod('put')) {
-            $request->validate([
-                'name'        => 'required|string|max:100',
-                'description' => 'nullable|string',
-            ]);
-        } else {
-            $fields = $request->only(['name', 'description']);
-            if (empty($fields)) {
-                return response()->json(['message' => 'No fields provided'], 422);
-            }
+        if ($request->isMethod('patch') && empty($request->only(['name', 'description']))) {
+            return response()->json(['message' => 'No fields provided'], 422);
         }
-        $category->update($request->only(['name', 'description']));
 
-        return response()->json($category);
+        try {
+            return response()->json($this->service->update($id, $request->validated()));
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], $e->getCode());
+        }
     }
     /**
      * @OA\Delete(
@@ -132,12 +118,10 @@ class CategoryController extends Controller
      */
     public function destroy(int $id)
     {
-        $category = Category::find($id);
-
-        if (!$category) return response()->json(['message' => 'Category not found'], 404);
-
-        $category->delete();
-
-        return response()->json(['message' => 'Category deleted']);
+        try {
+            return response()->json($this->service->delete($id));
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], $e->getCode());
+        }
     }
 }

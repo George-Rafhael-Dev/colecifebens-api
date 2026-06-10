@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Product;
-use Illuminate\Http\Request;
+use App\Services\ProductService;
+use App\Http\Requests\StoreProductRequest;
+use App\Http\Requests\UpdateProductRequest;
 
 class ProductController extends Controller
 {
+    public function __construct(private ProductService $service) {}
     /**
      * @OA\Get(
      *     path="/products",
@@ -17,7 +19,7 @@ class ProductController extends Controller
      */
     public function index()
     {
-        return response()->json(Product::all());
+        return response()->json($this->service->getAll());
     }
     /**
      * @OA\Get(
@@ -31,13 +33,12 @@ class ProductController extends Controller
      */
     public function show(int $id)
     {
-        $product = Product::find($id);
-
-        if (!$product) return response()->json(['message' => 'Product not found'], 404);
-
-        return response()->json($product);
-    }
-    /**
+        try {
+            return response()->json($this->service->getById($id));
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], $e->getCode());
+        }
+    }    /**
      * @OA\Post(
      *     path="/products",
      *     summary="Create product",
@@ -60,25 +61,9 @@ class ProductController extends Controller
      *     @OA\Response(response=422, description="Validation error")
      * )
      */
-    public function store(Request $request)
+    public function store(StoreProductRequest $request)
     {
-        $request->validate([
-            'name'        => 'required|string|max:150',
-            'description' => 'nullable|string',
-            'price'       => 'required|numeric|min:0.01',
-            'rarity'      => 'nullable|string|max:50',
-            'condition'   => 'required|string|in:novo,usado,restaurado',
-            'stock'       => 'required|integer|min:0',
-            'user_id'     => 'required|integer|exists:users,id',
-            'category_id' => 'required|integer|exists:categories,id',
-        ]);
-
-        $product = Product::create($request->only([
-            'name', 'description', 'price', 'rarity',
-            'condition', 'stock', 'user_id', 'category_id',
-        ]));
-
-        return response()->json($product, 201);
+        return response()->json($this->service->create($request->validated()), 201);
     }
     /**
      * @OA\Put(
@@ -118,40 +103,19 @@ class ProductController extends Controller
      *     @OA\Response(response=404, description="Not found")
      * )
      */
-    public function update(Request $request, int $id)
+    public function update(UpdateProductRequest $request, int $id)
     {
-        $product = Product::find($id);
-
-        if (!$product) return response()->json(['message' => 'Product not found'], 404);
-
-        if ($request->isMethod('put')) {
-            $request->validate([
-                'name'        => 'required|string|max:150',
-                'price'       => 'required|numeric|min:0.01',
-                'condition'   => 'required|string|in:novo,usado,restaurado',
-                'stock'       => 'required|integer|min:0',
-                'category_id' => 'required|integer|exists:categories,id',
-            ]);
-        } else {
-            $fields = $request->only(['name', 'description', 'price', 'rarity', 'condition', 'stock', 'category_id']);
-            if (empty($fields)) {
-                return response()->json(['message' => 'No fields provided'], 422);
-            }
-
-            $request->validate([
-                'price'       => 'sometimes|numeric|min:0.01',
-                'condition'   => 'sometimes|string|in:novo,usado,restaurado',
-                'stock'       => 'sometimes|integer|min:0',
-                'category_id' => 'sometimes|integer|exists:categories,id',
-            ]);
+        if ($request->isMethod('patch') && empty($request->only([
+            'name', 'description', 'price', 'rarity', 'condition', 'stock', 'category_id'
+        ]))) {
+            return response()->json(['message' => 'No fields provided'], 422);
         }
 
-        $product->update($request->only([
-            'name', 'description', 'price', 'rarity',
-            'condition', 'stock', 'category_id',
-        ]));
-
-        return response()->json($product);
+        try {
+            return response()->json($this->service->update($id, $request->validated()));
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], $e->getCode());
+        }
     }
     /**
      * @OA\Delete(
@@ -165,12 +129,10 @@ class ProductController extends Controller
      */
     public function destroy(int $id)
     {
-        $product = Product::find($id);
-
-        if (!$product) return response()->json(['message' => 'Product not found'], 404);
-
-        $product->delete();
-
-        return response()->json(['message' => 'Product deleted']);
+        try {
+            return response()->json($this->service->delete($id));
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], $e->getCode());
+        }
     }
 }

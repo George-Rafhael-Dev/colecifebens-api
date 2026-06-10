@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Review;
-use App\Models\Order;
-use Illuminate\Http\Request;
+use App\Services\ReviewService;
+use App\Http\Requests\StoreReviewRequest;
 
 class ReviewController extends Controller
 {
+    public function __construct(private ReviewService $service) {}
     /**
      * @OA\Get(
      *     path="/reviews",
@@ -18,8 +18,7 @@ class ReviewController extends Controller
      */
     public function index()
     {
-        return response()->json(Review::all());
-    }
+        return response()->json($this->service->getAll());    }
     /**
      * @OA\Get(
      *     path="/reviews/{id}",
@@ -32,11 +31,11 @@ class ReviewController extends Controller
      */
     public function show(int $id)
     {
-        $review = Review::find($id);
-
-        if (!$review) return response()->json(['message' => 'Review not found'], 404);
-
-        return response()->json($review);
+        try {
+            return response()->json($this->service->getById($id));
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], $e->getCode());
+        }
     }
     /**
      * @OA\Post(
@@ -57,46 +56,13 @@ class ReviewController extends Controller
      *     @OA\Response(response=422, description="Validation error or business rule violation")
      * )
      */
-    public function store(Request $request)
+    public function store(StoreReviewRequest $request)
     {
-        $request->validate([
-            'user_id'    => 'required|integer|exists:users,id',
-            'product_id' => 'required|integer|exists:products,id',
-            'rating'     => 'required|integer|between:1,5',
-            'comment'    => 'nullable|string',
-        ]);
-
-        $errors = [];
-
-        $purchased = Order::where('user_id', $request->user_id)
-            ->where('status', 'entregue')
-            ->where('payment_status', 'aprovado')
-            ->whereHas('products', function ($query) use ($request) {
-                $query->where('products.id', $request->product_id);
-            })
-            ->exists();
-
-        if (!$purchased) {
-            $errors['product_id'] = ['You can only review products you have purchased and received'];
+        try {
+            return response()->json($this->service->create($request->validated()), 201);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], $e->getCode());
         }
-
-        $exists = Review::where('user_id', $request->user_id)
-            ->where('product_id', $request->product_id)
-            ->exists();
-
-        if ($exists) {
-            $errors['review'] = ['User already reviewed this product'];
-        }
-
-        if (!empty($errors)) {
-            return response()->json(['message' => 'Validation failed', 'errors' => $errors], 422);
-        }
-
-        $review = Review::create($request->only([
-            'user_id', 'product_id', 'rating', 'comment',
-        ]));
-
-        return response()->json($review, 201);
     }
     /**
      * @OA\Delete(
@@ -110,12 +76,10 @@ class ReviewController extends Controller
      */
     public function destroy(int $id)
     {
-        $review = Review::find($id);
-
-        if (!$review) return response()->json(['message' => 'Review not found'], 404);
-
-        $review->delete();
-
-        return response()->json(['message' => 'Review deleted']);
+        try {
+            return response()->json($this->service->delete($id));
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], $e->getCode());
+        }
     }
 }
