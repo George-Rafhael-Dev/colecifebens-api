@@ -36,7 +36,7 @@ class UserController extends Controller
         try {
             return response()->json($this->service->getById($id));
         } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()], $e->getCode());
+            return response()->json(['message' => $e->getMessage()], 404);
         }
     }
     /**
@@ -89,7 +89,7 @@ class UserController extends Controller
         try {
             return response()->json($this->service->update($id, $request->validated()));
         } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()], $e->getCode());
+            return response()->json(['message' => $e->getMessage()], 404);
         }
     }
     /**
@@ -106,8 +106,8 @@ class UserController extends Controller
     {
         try {
             return response()->json($this->service->delete($id));
-        } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()], $e->getCode());
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 404);
         }
     }
 }

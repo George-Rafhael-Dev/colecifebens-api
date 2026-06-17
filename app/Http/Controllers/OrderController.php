@@ -35,7 +35,7 @@ class OrderController extends Controller
         try {
             return response()->json($this->service->getById($id));
         } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()], $e->getCode());
+            return response()->json(['message' => $e->getMessage()], 404);
         }
     }
     /**
@@ -69,7 +69,7 @@ class OrderController extends Controller
             return response()->json($this->service->create($request->validated()), 201);
         } catch (\Exception $e) {
             [$message, $stock] = explode('|', $e->getMessage()) + [1 => null];
-            return response()->json(['message' => $message, 'available' => $stock], $e->getCode());
+            return response()->json(['message' => $message, 'available' => $stock], 404);
         }
     }
     /**
@@ -95,7 +95,7 @@ class OrderController extends Controller
         try {
             return response()->json($this->service->updateStatus($id, $request->validated()));
         } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()], $e->getCode());
+            return response()->json(['message' => $e->getMessage()], 404);
         }
     }
     /**
@@ -113,7 +113,7 @@ class OrderController extends Controller
         try {
             return response()->json($this->service->delete($id));
         } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()], $e->getCode());
+            return response()->json(['message' => $e->getMessage()], 404);
         }
     }
 }

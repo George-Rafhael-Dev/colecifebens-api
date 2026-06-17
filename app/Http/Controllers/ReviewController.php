@@ -34,7 +34,7 @@ class ReviewController extends Controller
         try {
             return response()->json($this->service->getById($id));
         } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()], $e->getCode());
+            return response()->json(['message' => $e->getMessage()], 404);
         }
     }
     /**
@@ -61,7 +61,7 @@ class ReviewController extends Controller
         try {
             return response()->json($this->service->create($request->validated()), 201);
         } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()], $e->getCode());
+            return response()->json(['message' => $e->getMessage()], 404);
         }
     }
     /**
@@ -79,7 +79,7 @@ class ReviewController extends Controller
         try {
             return response()->json($this->service->delete($id));
         } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()], $e->getCode());
+            return response()->json(['message' => $e->getMessage()], 404);
         }
     }
 }

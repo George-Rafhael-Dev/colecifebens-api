@@ -34,12 +34,11 @@ class ProductController extends Controller
     public function show(int $id)
     {
         try {
-
             $retorno = $this->service->getById($id);
             dd($Product);
             return response()->json($this->service->getById($id));
         } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()], $e->getCode());
+            return response()->json(['message' => $e->getMessage()], 404);
         }
     }    /**
      * @OA\Post(
@@ -117,7 +116,7 @@ class ProductController extends Controller
         try {
             return response()->json($this->service->update($id, $request->validated()));
         } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()], $e->getCode());
+            return response()->json(['message' => $e->getMessage()], 404);
         }
     }
     /**
@@ -135,7 +134,7 @@ class ProductController extends Controller
         try {
             return response()->json($this->service->delete($id));
         } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()], $e->getCode());
+            return response()->json(['message' => $e->getMessage()], 404);
         }
     }
 }
