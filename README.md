@@ -1,58 +1,38 @@
-# ColecifeBens
-> 🚧 Em desenvolvimento!
-
-API desenvolvida com o framework Laravel.
-
-## Como rodar
-
-### Docker
-```bash
-docker-compose up
-```
-### Local
-```bash
-php artisan serve
-```
-## Observações
-
-- O projeto usa Docker para facilitar a execução em qualquer ambiente
-- Dependências são instaladas automaticamente no container
-
-## Opcional:
-Você pode criar aliases no terminal para facilitar:
-```bash
-alias dcup="docker-compose up"
-alias dcdown="docker-compose down"
-alias pas="php artisan serve"
-```
-
----
-
-# ColecifeBens
-> 🚧 Under development!
-
-API developed using the Laravel framework.
-
+# ColecifeBens API 
+REST API for a collectibles marketplace, built with Laravel 10 + MySQL + Docker.
+ 
+## Requirements
+- Docker Desktop
+- Or: PHP 8.2 + Composer + MySQL (local)
 ## Running the project
-
+ 
 ### Docker
 ```bash
-docker-compose up
+docker compose up --build
 ```
+ 
 ### Local
 ```bash
+cp .env.example .env
+composer install
+php artisan key:generate
+php artisan migrate
 php artisan serve
 ```
-## Notes
-
-- The project uses Docker to simplify execution in any environment
-- Dependencies are automatically installed inside the container
-
-## Optional
-
-You can create terminal aliases for convenience:
-```bash
-alias dcup="docker-compose up"
-alias dcdown="docker-compose down"
-alias pas="php artisan serve"
-```
+> Set `DB_HOST=localhost` in `.env` and make sure MySQL is running locally.
+ 
+## Documentation
+- Swagger UI: `http://localhost:8000/api/documentation`
+- Postman: import `colecifebens.postman_collection.json`
+## Business Rules
+- Stock is decremented automatically when an order is created
+- Order status follows the flow: `pendente → enviado → entregue` (or `cancelado`)
+- Order cannot be cancelled after delivery or with approved payment
+- Payment method can only be changed when status is `pendente` and payment is `aguardando`
+- Reviews are only allowed after the order is `entregue` with payment `aprovado`
+- One review per user per product
+## Tech Stack
+- Laravel 10 + PHP 8.2
+- MySQL 8
+- Docker + Docker Compose
+- Swagger (OpenAPI 3.0)
