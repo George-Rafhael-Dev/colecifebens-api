@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\ReviewService;
+use App\Http\Services\ReviewService;
 use App\Http\Requests\StoreReviewRequest;
 
 class ReviewController extends Controller

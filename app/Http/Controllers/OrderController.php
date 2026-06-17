@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\OrderService;
+use App\Http\Services\OrderService;
 use App\Http\Requests\StoreOrderRequest;
 use App\Http\Requests\UpdateOrderStatusRequest;
 
